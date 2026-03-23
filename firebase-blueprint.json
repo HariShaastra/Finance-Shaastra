@@ -1,0 +1,115 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User settings and profile information.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "currency": { "type": "string", "description": "User's preferred currency code (e.g., USD, INR)." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["displayName", "email"]
+    },
+    "Entry": {
+      "title": "Financial Entry",
+      "description": "A single financial transaction (income, expense, savings, investment).",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["income", "expense", "savings", "investment"] },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "group": { "type": "string", "enum": ["needs", "wants", "growth", "income", "other"] },
+        "date": { "type": "string", "format": "date-time" },
+        "note": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "isRegret": { "type": "boolean", "description": "For expenses: was it worth it or a regret?" },
+        "isImpulse": { "type": "boolean", "description": "Was this an unplanned purchase?" },
+        "impulseReason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "amount", "category", "date"]
+    },
+    "Goal": {
+      "title": "Savings Goal",
+      "description": "A financial goal the user is tracking.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "targetAmount": { "type": "number" },
+        "currentAmount": { "type": "number" },
+        "deadline": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "completed", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "targetAmount", "deadline"]
+    },
+    "Reflection": {
+      "title": "Reflection Log",
+      "description": "Daily, weekly, or monthly financial reflection.",
+      "type": "object",
+      "properties": {
+        "period": { "type": "string", "enum": ["daily", "weekly", "monthly"] },
+        "date": { "type": "string", "format": "date-time" },
+        "q1": { "type": "string", "description": "Was this expense worth it? / Where did you overspend?" },
+        "q2": { "type": "string", "description": "Any unnecessary spending? / What went well?" },
+        "q3": { "type": "string", "description": "What will you change? / Key learning" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["period", "date"]
+    },
+    "Subscription": {
+      "title": "Subscription Tracker",
+      "description": "Recurring payments.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "amount": { "type": "number" },
+        "frequency": { "type": "string", "enum": ["monthly", "yearly"] },
+        "category": { "type": "string" },
+        "nextBillingDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "amount", "frequency"]
+    },
+    "Scorecard": {
+      "title": "Scorecard",
+      "description": "User's financial behavior scores.",
+      "type": "object",
+      "properties": {
+        "discipline": { "type": "number", "description": "Logging consistency score (0-100)" },
+        "consistency": { "type": "number", "description": "Savings behavior score (0-100)" },
+        "awareness": { "type": "number", "description": "Expense control score (0-100)" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["discipline", "consistency", "awareness", "date"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document."
+    },
+    "/users/{userId}/entries": {
+      "schema": "Entry",
+      "description": "Collection of financial entries."
+    },
+    "/users/{userId}/goals": {
+      "schema": "Goal",
+      "description": "Collection of savings goals."
+    },
+    "/users/{userId}/reflections": {
+      "schema": "Reflection",
+      "description": "Collection of reflections."
+    },
+    "/users/{userId}/subscriptions": {
+      "schema": "Subscription",
+      "description": "Collection of subscriptions."
+    },
+    "/users/{userId}/scorecards": {
+      "schema": "Scorecard",
+      "description": "Historical scores."
+    }
+  }
+}

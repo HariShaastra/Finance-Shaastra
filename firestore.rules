@@ -1,0 +1,193 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{userId}
+    // Document ID: userId (string)
+    // Fields:
+    //   - displayName: string (required)
+    //   - email: string (required, email format)
+    //   - currency: string (optional)
+    //   - createdAt: timestamp (optional)
+    //
+    // Collection: /users/{userId}/entries
+    // Document ID: auto-generated
+    // Fields:
+    //   - type: string (required, ['income', 'expense', 'savings', 'investment'])
+    //   - amount: number (required, positive)
+    //   - category: string (required)
+    //   - group: string (required, ['needs', 'wants', 'growth', 'income', 'other'])
+    //   - date: timestamp (required)
+    //   - note: string (optional)
+    //   - tags: list (optional)
+    //   - isRegret: bool (optional)
+    //   - isImpulse: bool (optional)
+    //   - impulseReason: string (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: /users/{userId}/goals
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required)
+    //   - targetAmount: number (required, positive)
+    //   - currentAmount: number (required)
+    //   - deadline: timestamp (required)
+    //   - status: string (required, ['active', 'completed', 'cancelled'])
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: /users/{userId}/reflections
+    // Document ID: auto-generated
+    // Fields:
+    //   - period: string (required, ['daily', 'weekly', 'monthly'])
+    //   - date: timestamp (required)
+    //   - q1: string (optional)
+    //   - q2: string (optional)
+    //   - q3: string (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: /users/{userId}/subscriptions
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required)
+    //   - amount: number (required, positive)
+    //   - frequency: string (required, ['monthly', 'yearly'])
+    //   - category: string (optional)
+    //   - nextBillingDate: timestamp (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: /users/{userId}/scorecards
+    // Document ID: auto-generated
+    // Fields:
+    //   - discipline: number (required, 0-100)
+    //   - consistency: number (required, 0-100)
+    //   - awareness: number (required, 0-100)
+    //   - date: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidString(val, min, max) {
+      return val is string && val.size() >= min && val.size() <= max;
+    }
+
+    function isValidNumber(val, min, max) {
+      return val is number && val >= min && val <= max;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['displayName', 'email']) &&
+             isValidString(data.displayName, 1, 100) &&
+             isValidEmail(data.email) &&
+             (!('currency' in data) || isValidString(data.currency, 1, 10));
+    }
+
+    function isValidEntry(data) {
+      return data.keys().hasAll(['type', 'amount', 'category', 'group', 'date', 'createdAt']) &&
+             data.type in ['income', 'expense', 'savings', 'investment'] &&
+             data.amount is number && data.amount > 0 &&
+             isValidString(data.category, 1, 50) &&
+             data.group in ['needs', 'wants', 'growth', 'income', 'other'] &&
+             data.date is timestamp &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidGoal(data) {
+      return data.keys().hasAll(['title', 'targetAmount', 'currentAmount', 'deadline', 'status', 'createdAt']) &&
+             isValidString(data.title, 1, 100) &&
+             data.targetAmount is number && data.targetAmount > 0 &&
+             data.currentAmount is number &&
+             data.deadline is timestamp &&
+             data.status in ['active', 'completed', 'cancelled'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidReflection(data) {
+      return data.keys().hasAll(['period', 'date', 'createdAt']) &&
+             data.period in ['daily', 'weekly', 'monthly'] &&
+             data.date is timestamp &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidSubscription(data) {
+      return data.keys().hasAll(['name', 'amount', 'frequency', 'createdAt']) &&
+             isValidString(data.name, 1, 100) &&
+             data.amount is number && data.amount > 0 &&
+             data.frequency in ['monthly', 'yearly'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidScorecard(data) {
+      return data.keys().hasAll(['discipline', 'consistency', 'awareness', 'date']) &&
+             isValidNumber(data.discipline, 0, 100) &&
+             isValidNumber(data.consistency, 0, 100) &&
+             isValidNumber(data.awareness, 0, 100) &&
+             data.date is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow update: if isOwner(userId) && isValidUserProfile(request.resource.data);
+
+      match /entries/{entryId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidEntry(request.resource.data);
+        allow update: if isOwner(userId) && isValidEntry(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /goals/{goalId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidGoal(request.resource.data);
+        allow update: if isOwner(userId) && isValidGoal(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /reflections/{reflectionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidReflection(request.resource.data);
+        allow update: if isOwner(userId) && isValidReflection(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /subscriptions/{subId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidSubscription(request.resource.data);
+        allow update: if isOwner(userId) && isValidSubscription(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /scorecards/{scoreId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidScorecard(request.resource.data);
+        allow update: if isOwner(userId) && isValidScorecard(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}
