@@ -4,12 +4,29 @@ import { motion } from 'motion/react';
 export const Logo: React.FC<{ className?: string; size?: number }> = ({ className, size = 40 }) => {
   return (
     <div className={`relative flex items-center justify-center ${className}`} style={{ width: size, height: size }}>
-      {/* Outer rotating ring - The "Shaastra" (Knowledge/Cycle) */}
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-        className="absolute inset-0 border-2 border-dashed border-amber-500/30 rounded-full"
-      />
+      {/* Geometric resonance rings */}
+      {[1, 1.5, 2].map((scale, i) => (
+        <motion.div
+          key={i}
+          animate={{ 
+            scale: [scale, scale * 1.1, scale],
+            opacity: [0.1, 0.2, 0.1],
+            rotate: i % 2 === 0 ? 360 : -360
+          }}
+          transition={{ duration: 10 + i * 5, repeat: Infinity, ease: "linear" }}
+          className="absolute inset-0 border border-amber-500/20 rounded-full"
+        />
+      ))}
+      
+      {/* Central geometric anchor - Nested Triangle/Square */}
+      <motion.div 
+        animate={{ rotate: -360 }}
+        transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-0 flex items-center justify-center opacity-10"
+      >
+        <div className="w-full h-full border border-amber-600 rotate-45 scale-75" />
+        <div className="absolute w-full h-full border border-amber-600 scale-50" />
+      </motion.div>
       
       {/* Inner pulsing glow */}
       <motion.div

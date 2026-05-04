@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthProvider';
-import { db, Entry, OperationType, handleFirestoreError } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { db, Entry, Subscription, Goal, OperationType, handleFirestoreError } from '../lib/firebase';
+import { collection, addDoc, serverTimestamp, Timestamp, query, orderBy, limit, getDocs, updateDoc, doc, increment } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, AlertCircle, HelpCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, HelpCircle, Sparkles, Clock, Calendar, Target, PlusCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const CATEGORIES = {
   income: ['Salary', 'Freelance', 'Gift', 'Investment Returns', 'Other'],
@@ -26,6 +26,10 @@ export const AddEntry = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [recentTemplates, setRecentTemplates] = useState<Partial<Entry>[]>([]);
+  const [activeSubscriptions, setActiveSubscriptions] = useState<Subscription[]>([]);
+  const [activeGoals, setActiveGoals] = useState<Goal[]>([]);
+  const [selectedGoalId, setSelectedGoalId] = useState<string>('');
   const [formData, setFormData] = useState<Partial<Entry>>({
     type: 'expense',
     amount: 0,
@@ -37,6 +41,68 @@ export const AddEntry = () => {
     isImpulse: false,
     impulseReason: '',
   });
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchData = async () => {
+      try {
+        // Fetch recent unique entries for templates
+        const entriesQ = query(collection(db, 'users', user.uid, 'entries'), orderBy('createdAt', 'desc'), limit(50));
+        const entriesSnap = await getDocs(entriesQ);
+        const uniqueTemplates: Partial<Entry>[] = [];
+        const seenKeys = new Set<string>();
+
+        entriesSnap.docs.forEach(doc => {
+          const data = doc.data() as Entry;
+          const key = `${data.type}-${data.category}-${data.group}`;
+          if (!seenKeys.has(key) && uniqueTemplates.length < 5) {
+            seenKeys.add(key);
+            uniqueTemplates.push({
+              type: data.type,
+              category: data.category,
+              group: data.group,
+              amount: data.amount,
+              note: data.note
+            });
+          }
+        });
+        setRecentTemplates(uniqueTemplates);
+
+        // Fetch subscriptions
+        const subsSnap = await getDocs(collection(db, 'users', user.uid, 'subscriptions'));
+        setActiveSubscriptions(subsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Subscription)));
+
+        // Fetch goals
+        const goalsSnap = await getDocs(collection(db, 'users', user.uid, 'goals'));
+        setActiveGoals(goalsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Goal)).filter(g => g.status === 'active'));
+
+      } catch (error) {
+        console.error("Error pre-filling data:", error);
+      }
+    };
+
+    fetchData();
+  }, [user]);
+
+  const applyTemplate = (template: Partial<Entry>) => {
+    setFormData(prev => ({
+      ...prev,
+      ...template,
+      date: prev.date // Keep current date
+    }));
+  };
+
+  const applySubscription = (sub: Subscription) => {
+    setFormData(prev => ({
+      ...prev,
+      type: 'expense',
+      category: sub.category || 'Other',
+      amount: sub.amount,
+      note: `Recurring: ${sub.name}`,
+      group: 'needs', // Default subscriptions to needs
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +116,17 @@ export const AddEntry = () => {
         date: Timestamp.fromDate(new Date(formData.date as string)),
         createdAt: serverTimestamp(),
       };
-      await addDoc(collection(db, 'users', user.uid, 'entries'), entryData);
+      
+      const docRef = await addDoc(collection(db, 'users', user.uid, 'entries'), entryData);
+
+      // If a goal is selected and it's a growth entry, update the goal
+      if (selectedGoalId && (formData.type === 'savings' || formData.type === 'investment')) {
+        const goalRef = doc(db, 'users', user.uid, 'goals', selectedGoalId);
+        await updateDoc(goalRef, {
+          currentAmount: increment(Number(formData.amount))
+        });
+      }
+
       navigate('/');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}/entries`);
@@ -81,12 +157,69 @@ export const AddEntry = () => {
     >
       <header className="flex items-center justify-between">
         <div className="flex items-center">
+          <button onClick={() => navigate(-1)} className="mr-4 p-2 hover:bg-stone-100 rounded-full text-stone-400">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <h2 className="text-3xl font-black text-stone-900 tracking-tight">Add Entry</h2>
         </div>
         <div className="p-2 bg-amber-100 text-amber-600 rounded-xl">
           <Sparkles className="w-6 h-6" />
         </div>
       </header>
+
+      {/* Smart Suggestions Bar */}
+      <AnimatePresence>
+        {(recentTemplates.length > 0 || activeSubscriptions.length > 0) && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-4"
+          >
+            {recentTemplates.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 text-[10px] font-black text-stone-400 uppercase tracking-widest pl-2">
+                  <Clock className="w-3 h-3" />
+                  <span>Recent Templates</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {recentTemplates.map((t, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => applyTemplate(t)}
+                      className="px-4 py-2 bg-white border border-stone-100 rounded-2xl text-[10px] font-bold text-stone-600 hover:border-amber-400 hover:text-amber-600 transition-all shadow-sm"
+                    >
+                      {t.category} (${t.amount})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeSubscriptions.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 text-[10px] font-black text-stone-400 uppercase tracking-widest pl-2">
+                  <Calendar className="w-3 h-3" />
+                  <span>Log Subscription</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {activeSubscriptions.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => applySubscription(s)}
+                      className="px-4 py-2 bg-amber-50 border border-amber-100 rounded-2xl text-[10px] font-bold text-amber-700 hover:bg-amber-100 transition-all shadow-sm flex items-center"
+                    >
+                      <PlusCircle className="w-3 h-3 mr-1.5" />
+                      {s.name} (${s.amount})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <form onSubmit={handleSubmit} className="bg-white p-10 rounded-[2.5rem] border border-stone-200 shadow-sm space-y-10">
         {/* Type Selector */}
@@ -177,6 +310,31 @@ export const AddEntry = () => {
             </select>
           </div>
         </div>
+
+        {/* Goal Linkage (Only for Growth/Savings/Investment) */}
+        {(formData.type === 'savings' || formData.type === 'investment') && activeGoals.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-8 bg-amber-50 rounded-[2rem] border border-amber-100 space-y-4"
+          >
+            <div className="flex items-center space-x-2 text-amber-800">
+              <Target className="w-5 h-5" />
+              <h4 className="font-black text-sm uppercase tracking-widest">Link to Goal</h4>
+            </div>
+            <p className="text-xs text-amber-700 font-medium italic">Allocate this entry towards one of your active goals to track progress automatically.</p>
+            <select
+              value={selectedGoalId}
+              onChange={(e) => setSelectedGoalId(e.target.value)}
+              className="w-full px-6 py-4 bg-white border border-amber-200 rounded-2xl focus:ring-2 focus:ring-amber-500 font-bold text-stone-900"
+            >
+              <option value="">Do not link to a goal</option>
+              {activeGoals.map(goal => (
+                <option key={goal.id} value={goal.id}>{goal.title} (Target: ${goal.targetAmount})</option>
+              ))}
+            </select>
+          </motion.div>
+        )}
 
         {/* Behavioral Tracking (Only for Expenses) */}
         {formData.type === 'expense' && (

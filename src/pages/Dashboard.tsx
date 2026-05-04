@@ -4,9 +4,10 @@ import { db, Entry, OperationType, handleFirestoreError } from '../lib/firebase'
 import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
-import { ArrowUpCircle, ArrowDownCircle, Wallet, Percent, TrendingUp, AlertCircle, Sparkles } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Wallet, Percent, TrendingUp, AlertCircle, Sparkles, BookOpen, Target, PlusCircle, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
+import { Link } from 'react-router-dom';
 
 const COLORS = ['#d97706', '#059669', '#2563eb', '#7c3aed', '#db2777'];
 
@@ -108,7 +109,10 @@ export const Dashboard = () => {
             <span className="text-[10px] font-black uppercase tracking-[0.2em]">Financial Awareness</span>
           </div>
           <h2 className="text-4xl font-black text-stone-900 tracking-tight">Welcome, {profile?.displayName?.split(' ')[0]}</h2>
-          <p className="text-stone-500 mt-1 font-medium">Your financial story for {format(currentMonth, 'MMMM yyyy')}</p>
+          <p className="text-stone-500 mt-2 font-medium leading-relaxed max-w-xl">
+            Finance Shaastra is your personal guide to financial mindfulness—it tracks your spending patterns and behavioral scores using logic-based rules to help you master discipline without algorithms.
+          </p>
+          <p className="text-stone-400 mt-1 font-medium text-sm italic underline decoration-amber-500/30">Your financial story for {format(currentMonth, 'MMMM yyyy')}</p>
         </div>
       </motion.header>
 
@@ -147,6 +151,34 @@ export const Dashboard = () => {
             <ScoreItem label="Awareness" score={expenseControl} description="Expense control" />
           </div>
         </div>
+      </motion.div>
+
+      {/* Action Center - Integration Hub */}
+      <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <ActionCard 
+          title="Daily Reflection" 
+          description="Build awareness of your spending emotions."
+          icon={BookOpen}
+          link="/reflections"
+          buttonText="Reflect Now"
+          color="bg-amber-100 text-amber-900"
+        />
+        <ActionCard 
+          title="Track Progress" 
+          description="See how close you are to your growth goals."
+          icon={Target}
+          link="/goals"
+          buttonText="View Goals"
+          color="bg-stone-900 text-white"
+        />
+        <ActionCard 
+          title="Quick Log" 
+          description="Record a new transaction in seconds."
+          icon={PlusCircle}
+          link="/add"
+          buttonText="Add Entry"
+          color="bg-amber-500 text-white"
+        />
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -273,6 +305,30 @@ const StatCard = ({ title, value, icon: Icon, color, bgColor }: any) => (
     <p className="text-3xl font-black text-stone-900 mt-1">
       {typeof value === 'number' ? `$${value.toLocaleString()}` : value}
     </p>
+  </div>
+);
+
+const ActionCard = ({ title, description, icon: Icon, link, buttonText, color }: any) => (
+  <div className="bg-white p-8 rounded-[2.5rem] border border-stone-200 shadow-sm flex flex-col justify-between group hover:shadow-md transition-all">
+    <div className="space-y-4">
+      <div className={cn("inline-flex p-3 rounded-2xl", color.includes('bg-stone-900') ? "bg-stone-100 text-stone-900" : color)}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div>
+        <h4 className="text-lg font-black text-stone-900">{title}</h4>
+        <p className="text-stone-500 text-sm font-medium mt-1 leading-relaxed">{description}</p>
+      </div>
+    </div>
+    <Link 
+      to={link}
+      className={cn(
+        "mt-8 flex items-center justify-between px-6 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
+        color
+      )}
+    >
+      {buttonText}
+      <ArrowRight className="w-4 h-4" />
+    </Link>
   </div>
 );
 
