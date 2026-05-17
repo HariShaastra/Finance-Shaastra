@@ -13,6 +13,7 @@ import { Reflections } from './pages/Reflections';
 import { Goals } from './pages/Goals';
 import { Subscriptions } from './pages/Subscriptions';
 import { Guide } from './pages/Guide';
+import { Settings } from './pages/Settings';
 import { Logo } from './components/Logo';
 
 const Login = () => {
@@ -83,6 +84,7 @@ export default function App() {
                     <Route path="/goals" element={<Goals />} />
                     <Route path="/subscriptions" element={<Subscriptions />} />
                     <Route path="/guide" element={<Guide />} />
+                    <Route path="/settings" element={<Settings />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>

@@ -92,6 +92,9 @@ export interface UserProfile {
   email: string;
   currency: string;
   createdAt: any;
+  notificationsEnabled: boolean;
+  smsParsingEnabled: boolean;
+  lastEntryDate?: any;
 }
 
 export interface Entry {

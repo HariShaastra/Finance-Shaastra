@@ -3,9 +3,10 @@ import { useAuth } from '../lib/AuthProvider';
 import { db, Entry, Subscription, Goal, OperationType, handleFirestoreError } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, Timestamp, query, orderBy, limit, getDocs, updateDoc, doc, increment } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, AlertCircle, HelpCircle, Sparkles, Clock, Calendar, Target, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, HelpCircle, Sparkles, Clock, Calendar, Target, PlusCircle, MessageSquare, ScanText, Trash } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { parseTransactionSMS, TransactionSuggestion } from '../lib/smsParser';
 
 const CATEGORIES = {
   income: ['Salary', 'Freelance', 'Gift', 'Investment Returns', 'Other'],
@@ -23,13 +24,16 @@ const GROUPS = [
 ];
 
 export const AddEntry = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [recentTemplates, setRecentTemplates] = useState<Partial<Entry>[]>([]);
   const [activeSubscriptions, setActiveSubscriptions] = useState<Subscription[]>([]);
   const [activeGoals, setActiveGoals] = useState<Goal[]>([]);
   const [selectedGoalId, setSelectedGoalId] = useState<string>('');
+  const [smsInput, setSmsInput] = useState('');
+  const [smsSuggestion, setSmsSuggestion] = useState<TransactionSuggestion | null>(null);
+
   const [formData, setFormData] = useState<Partial<Entry>>({
     type: 'expense',
     amount: 0,
@@ -41,6 +45,27 @@ export const AddEntry = () => {
     isImpulse: false,
     impulseReason: '',
   });
+
+  const handleSmsPaste = (text: string) => {
+    setSmsInput(text);
+    const suggestion = parseTransactionSMS(text);
+    setSmsSuggestion(suggestion);
+  };
+
+  const applySmsSuggestion = () => {
+    if (smsSuggestion) {
+      setFormData(prev => ({
+        ...prev,
+        type: smsSuggestion.type,
+        amount: smsSuggestion.amount,
+        category: smsSuggestion.category,
+        note: smsSuggestion.note,
+        date: new Date().toISOString().split('T')[0]
+      }));
+      setSmsSuggestion(null);
+      setSmsInput('');
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -167,8 +192,79 @@ export const AddEntry = () => {
         </div>
       </header>
 
-      {/* Smart Suggestions Bar */}
-      <AnimatePresence>
+      {/* SMS Parsing Section */}
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-stone-900 text-white p-8 rounded-[2.5rem] shadow-2xl space-y-6 relative overflow-hidden"
+      >
+        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center space-x-3">
+            <div className="p-3 bg-white/10 rounded-2xl">
+              <MessageSquare className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black tracking-tight">SMS Sync</h3>
+              <p className="text-stone-400 text-[10px] font-bold uppercase tracking-widest">Mobile Assistant</p>
+            </div>
+          </div>
+          {profile?.smsParsingEnabled ? (
+            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded-full uppercase tracking-widest">Active</span>
+          ) : (
+            <span className="px-3 py-1 bg-stone-800 text-stone-500 text-[10px] font-black rounded-full uppercase tracking-widest">Disabled</span>
+          )}
+        </div>
+
+        <div className="space-y-4 relative z-10">
+          <p className="text-xs text-stone-400 font-medium italic">Paste a banking SMS or UPI transaction message to auto-fill this entry.</p>
+          <div className="relative">
+            <textarea
+              value={smsInput}
+              onChange={(e) => handleSmsPaste(e.target.value)}
+              placeholder="Paste SMS here (e.g. Debited by ₹500 at Amazon...)"
+              className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-amber-500 text-sm font-medium text-white placeholder:text-stone-600 min-h-[80px] resize-none"
+            />
+            {smsInput && (
+              <button 
+                type="button"
+                onClick={() => { setSmsInput(''); setSmsSuggestion(null); }}
+                className="absolute top-3 right-3 p-2 hover:bg-white/10 rounded-full text-stone-500"
+              >
+                <Trash className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          
+          <AnimatePresence>
+            {smsSuggestion && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-amber-500 p-6 rounded-2xl flex items-center justify-between"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-white/20 rounded-xl">
+                    <ScanText className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest">Suggestion Found</p>
+                    <p className="text-sm font-black text-stone-900">{smsSuggestion.type === 'expense' ? 'Expense' : 'Income'}: ${smsSuggestion.amount}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={applySmsSuggestion}
+                  className="px-6 py-3 bg-stone-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-transform"
+                >
+                  Apply
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
         {(recentTemplates.length > 0 || activeSubscriptions.length > 0) && (
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
@@ -219,7 +315,6 @@ export const AddEntry = () => {
             )}
           </motion.div>
         )}
-      </AnimatePresence>
 
       <form onSubmit={handleSubmit} className="bg-white p-10 rounded-[2.5rem] border border-stone-200 shadow-sm space-y-10">
         {/* Type Selector */}

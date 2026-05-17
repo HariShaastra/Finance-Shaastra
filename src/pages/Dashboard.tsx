@@ -8,6 +8,7 @@ import { ArrowUpCircle, ArrowDownCircle, Wallet, Percent, TrendingUp, AlertCircl
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
+import { checkIrregularUsage } from '../lib/notificationService';
 
 const COLORS = ['#d97706', '#059669', '#2563eb', '#7c3aed', '#db2777'];
 
@@ -18,6 +19,10 @@ export const Dashboard = () => {
 
   useEffect(() => {
     if (!user) return;
+
+    if (profile) {
+      checkIrregularUsage(user.uid, profile);
+    }
 
     const q = query(
       collection(db, 'users', user.uid, 'entries'),

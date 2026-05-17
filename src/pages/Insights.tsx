@@ -114,7 +114,18 @@ export const Insights = () => {
       </header>
 
       {/* Behavioral Scorecards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <InsightCard 
+          title="Financial Mindfulness" 
+          value={entries.length > 0 ? `${Math.round((entries.filter(e => {
+            const d = e.date?.toDate ? e.date.toDate() : new Date(e.date);
+            return d > subMonths(new Date(), 1);
+          }).length / 30) * 100)}%` : '0%'}
+          description="Your logging frequency over the last 30 days. High consistency reduces the need for notifications."
+          icon={BookOpen}
+          color="text-stone-900"
+          bgColor="bg-stone-100"
+        />
         <InsightCard 
           title="Spending Discipline" 
           value={impulseCount === 0 ? 'Perfect' : `${impulseCount} Impulse Purchases`}
