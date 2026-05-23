@@ -14,9 +14,24 @@ export const Settings = () => {
   const [settings, setSettings] = useState({
     notificationsEnabled: profile?.notificationsEnabled ?? false,
     smsParsingEnabled: profile?.smsParsingEnabled ?? false,
+    recoveryMode: profile?.recoveryMode ?? 'standard',
+    familyBudgetGoal: profile?.familyBudgetGoal ?? 0,
+    familyMembersCount: profile?.familyMembersCount ?? 1,
   });
 
-  const handleToggle = async (key: keyof typeof settings) => {
+  React.useEffect(() => {
+    if (profile) {
+      setSettings({
+        notificationsEnabled: profile.notificationsEnabled ?? false,
+        smsParsingEnabled: profile.smsParsingEnabled ?? false,
+        recoveryMode: profile.recoveryMode ?? 'standard',
+        familyBudgetGoal: profile.familyBudgetGoal ?? 0,
+        familyMembersCount: profile.familyMembersCount ?? 1,
+      });
+    }
+  }, [profile]);
+
+  const handleToggle = async (key: 'notificationsEnabled' | 'smsParsingEnabled') => {
     if (key === 'notificationsEnabled' && !settings.notificationsEnabled) {
       const granted = await requestNotificationPermission();
       if (!granted) {
@@ -97,6 +112,67 @@ export const Settings = () => {
             >
               <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings.smsParsingEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
             </button>
+          </div>
+
+          <div className="h-px bg-stone-100" />
+
+          {/* Recovery Modes */}
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-3">
+                <ShieldCheck className="w-5 h-5 text-amber-600" />
+                <h3 className="text-xl font-black text-stone-900">App Focus Mode (Recovery)</h3>
+              </div>
+              <p className="text-stone-500 text-sm font-medium leading-relaxed">
+                Choose a mode to shift the app's emotional tone, indicators, and score metrics to match your specific financial life stage.
+              </p>
+            </div>
+
+            <select
+              value={settings.recoveryMode}
+              onChange={(e) => setSettings(prev => ({ ...prev, recoveryMode: e.target.value as any }))}
+              className="w-full px-6 py-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-amber-500 font-bold text-stone-900 text-sm transition-all shadow-sm"
+            >
+              <option value="standard">Standard (Balanced indicators and goals)</option>
+              <option value="debt">Debt Recovery Mode (Gentle reassurance, focus on obligations)</option>
+              <option value="student">Student Mode (Focused on skilling & habit consistency over raw income)</option>
+              <option value="emergency">Emergency Mode (Survival focused, flags non-essential leaks)</option>
+              <option value="rebuilding">Rebuilding Phase (Celebrates incremental, visual micro-wins)</option>
+              <option value="family">Family Responsibility (Indian household budgets, medical, shared care)</option>
+            </select>
+
+            {settings.recoveryMode === 'family' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-8 bg-amber-50 border border-amber-100 rounded-3xl space-y-6"
+              >
+                <h4 className="text-sm font-black text-amber-950 uppercase tracking-widest">👪 Indian Household Allocation Settings</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-amber-800 uppercase tracking-wider">Shared Household Target Goal ($)</label>
+                    <input
+                      type="number"
+                      value={settings.familyBudgetGoal}
+                      onChange={(e) => setSettings(prev => ({ ...prev, familyBudgetGoal: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-5 py-3 bg-white border border-amber-200 rounded-xl font-bold focus:ring-2 focus:ring-amber-500 text-stone-900 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-amber-800 uppercase tracking-wider">Number of Dependents / Parents Supported</label>
+                    <input
+                      type="number"
+                      value={settings.familyMembersCount}
+                      onChange={(e) => setSettings(prev => ({ ...prev, familyMembersCount: parseInt(e.target.value) || 1 }))}
+                      className="w-full px-5 py-3 bg-white border border-amber-200 rounded-xl font-bold focus:ring-2 focus:ring-amber-500 text-stone-900 text-sm"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-amber-800/80 font-medium italic select-none">
+                  *This helps us prioritize parent medical bills, education funds, and emergency provisions.
+                </p>
+              </motion.div>
+            )}
           </div>
 
           <div className="h-px bg-stone-100" />

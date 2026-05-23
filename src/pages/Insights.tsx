@@ -94,6 +94,17 @@ export const Insights = () => {
   const impulseCount = current.entries.filter(e => e.isImpulse).length;
   const regretCount = current.entries.filter(e => e.isRegret).length;
 
+  // Emotional triggers counting
+  const emotionalCounts = entries
+    .filter(e => e.type === 'expense' && e.feeling)
+    .reduce((acc: Record<string, number>, curr) => {
+      const feel = curr.feeling || 'Planned';
+      acc[feel] = (acc[feel] || 0) + 1;
+      return acc;
+    }, { Planned: 0, Stress: 0, Boredom: 0, Social: 0, Convenience: 0, Reward: 0 });
+
+  const totalEmotionalSpends = Object.values(emotionalCounts).reduce((a, b) => a + b, 0);
+
   if (loading) return <div className="flex items-center justify-center h-64 text-stone-400 font-bold uppercase tracking-widest text-xs">Analyzing your behavior...</div>;
 
   return (
@@ -156,9 +167,10 @@ export const Insights = () => {
       <div className="bg-white p-10 rounded-[2.5rem] border border-stone-200 shadow-sm space-y-10">
         <h3 className="text-xl font-black text-stone-900 flex items-center">
           <AlertCircle className="w-6 h-6 mr-3 text-amber-600" />
-          Key Findings
+          Key Findings & Emotional Spend Landscapes
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          {/* Numeric Analytics Column */}
           <div className="space-y-6">
             <div className="p-8 bg-stone-50 rounded-[2rem]">
               <p className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">Highest Spending Category</p>
@@ -167,29 +179,70 @@ export const Insights = () => {
               </p>
               <p className="text-sm text-stone-500 mt-3 font-medium">This is where most of your money is going this month.</p>
             </div>
+            
             <div className="p-8 bg-stone-50 rounded-[2rem]">
-              <p className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">Daily Burn Rate</p>
+              <p className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">Daily Burn Rate (Average Daily Spend)</p>
               <p className="text-2xl font-black text-stone-900 mt-2">${burnRate.toFixed(2)} / day</p>
               <p className="text-sm text-stone-500 mt-3 font-medium">On average, you spend this much every single day.</p>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="p-6 bg-stone-50 rounded-2xl">
+                <p className="text-[8px] font-black text-stone-400 uppercase tracking-wider">Opportunity Cost</p>
+                <p className="text-lg font-black text-stone-900 mt-1">${(current.expenses * 0.07 / 12).toFixed(2)}/mo</p>
+              </div>
+              <div className="p-6 bg-stone-50 rounded-2xl">
+                <p className="text-[8px] font-black text-stone-400 uppercase tracking-wider">Monthly Spend Delta</p>
+                <p className="text-lg font-black text-stone-900 mt-1">
+                  {current.expenses > previous.expenses ? '+' : '-'}${Math.abs(current.expenses - previous.expenses).toFixed(0)}
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="space-y-6">
-            <div className="p-8 bg-stone-50 rounded-[2rem]">
-              <p className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">Monthly Comparison</p>
-              <p className="text-2xl font-black text-stone-900 mt-2">
-                {current.expenses > previous.expenses ? 'Spending is UP' : 'Spending is DOWN'}
-              </p>
-              <p className="text-sm text-stone-500 mt-3 font-medium">
-                Compared to last month, your expenses have {current.expenses > previous.expenses ? 'increased' : 'decreased'} by 
-                ${Math.abs(current.expenses - previous.expenses).toFixed(2)}.
+
+          {/* Emotional Behavior landscapes */}
+          <div className="p-8 bg-stone-900 text-white rounded-[2rem] space-y-6 relative overflow-hidden flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl -mr-12 -mt-12" />
+            
+            <div className="space-y-2">
+              <h4 className="text-lg font-black tracking-tight flex items-center gap-2">
+                <span>🧠 Emotional Impulse Ecology</span>
+                <span className="text-[9px] bg-amber-500 text-stone-950 px-2 py-0.5 rounded-full uppercase font-black">Mind</span>
+              </h4>
+              <p className="text-xs text-stone-400 leading-relaxed font-semibold">
+                Your spending is tightly tied to emotional triggers. Here is your deterministic trigger scorecard:
               </p>
             </div>
-            <div className="p-8 bg-stone-50 rounded-[2rem]">
-              <p className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">Opportunity Cost</p>
-              <p className="text-2xl font-black text-stone-900 mt-2">
-                ${(current.expenses * 0.07 / 12).toFixed(2)} / month
-              </p>
-              <p className="text-sm text-stone-500 mt-3 font-medium">If your monthly expenses were invested at 7% return, this is what you'd earn in interest alone.</p>
+
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { label: 'Planned 🌻', count: emotionalCounts.Planned || 0, color: 'text-emerald-400' },
+                { label: 'Stress Escape ⚡', count: emotionalCounts.Stress || 0, color: 'text-amber-400' },
+                { label: 'Boredom Relief ☁️', count: emotionalCounts.Boredom || 0, color: 'text-lime-400' },
+                { label: 'Peer Pressure 🤝', count: emotionalCounts.Social || 0, color: 'text-rose-450' },
+                { label: 'Convenience Spend 🚗', count: emotionalCounts.Convenience || 0, color: 'text-blue-400' },
+                { label: 'Reward Spend 🎉', count: emotionalCounts.Reward || 0, color: 'text-fuchsia-400' },
+              ].map((item, idx) => (
+                <div key={idx} className="p-4 bg-white/5 border border-white/5 rounded-xl flex justify-between items-center">
+                  <span className="text-xs font-bold text-stone-300">{item.label}</span>
+                  <span className={cn("text-sm font-black", item.color)}>{item.count}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Rule-based behavioral suggestions */}
+            <div className="p-5 bg-white/5 border border-white/10 rounded-[1.5rem] text-[11px] leading-relaxed font-semibold text-stone-300">
+              💡 <strong>Behavioral Observation:</strong> {
+                (emotionalCounts.Stress || 0) > 2 ? (
+                  "Stress-related purchases are elevated. Your mind is attempting to soothe stress with temporary spend releases. Try implementing our 3-Point Pause Module next time."
+                ) : (emotionalCounts.Social || 0) > 1 ? (
+                  "Social exposure spending has occurred. Consider pre-agreeing on low-cost gathering guidelines or scheduling calendar days structured around shared family priorities instead of passive consumer spaces."
+                ) : (emotionalCounts.Boredom || 0) > 1 ? (
+                  "Boredom spikes are triggering fast wants. Engage high-focus $0 hobbies (reading, walking, writing in Shaastra reflection journals) when restlessness hits."
+                ) : (
+                  "Your emotional spending is balanced and planned. You are maintaining exceptional self-awareness of transaction triggers!"
+                )
+              }
             </div>
           </div>
         </div>

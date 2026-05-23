@@ -95,6 +95,9 @@ export interface UserProfile {
   notificationsEnabled: boolean;
   smsParsingEnabled: boolean;
   lastEntryDate?: any;
+  recoveryMode?: 'standard' | 'debt' | 'student' | 'emergency' | 'rebuilding' | 'family';
+  familyBudgetGoal?: number;
+  familyMembersCount?: number;
 }
 
 export interface Entry {
@@ -109,6 +112,7 @@ export interface Entry {
   isRegret?: boolean;
   isImpulse?: boolean;
   impulseReason?: string;
+  feeling?: string;
   createdAt: any;
 }
 

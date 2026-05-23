@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthProvider';
 import { logout } from '../lib/firebase';
-import { LayoutDashboard, PlusCircle, BarChart3, BookOpen, Target, CreditCard, LogOut, Menu, X, ArrowLeft, HelpCircle, Settings } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, BarChart3, BookOpen, Target, CreditCard, LogOut, Menu, X, ArrowLeft, HelpCircle, Settings, Compass } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Logo } from './Logo';
 
@@ -12,6 +12,7 @@ const navItems = [
   { path: '/insights', label: 'Insights', icon: BarChart3 },
   { path: '/reflections', label: 'Reflections', icon: BookOpen },
   { path: '/goals', label: 'Goals', icon: Target },
+  { path: '/decisions', label: 'Decision Journal', icon: Compass },
   { path: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/guide', label: 'Guide', icon: HelpCircle },

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthProvider';
 import { db, Entry, Subscription, Goal, OperationType, handleFirestoreError } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, query, orderBy, limit, getDocs, updateDoc, doc, increment } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, Timestamp, query, orderBy, limit, getDocs, updateDoc, doc, increment, where } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, AlertCircle, HelpCircle, Sparkles, Clock, Calendar, Target, PlusCircle, MessageSquare, ScanText, Trash } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, HelpCircle, Sparkles, Clock, Calendar, Target, PlusCircle, MessageSquare, ScanText, Trash, HeartHandshake } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { parseTransactionSMS, TransactionSuggestion } from '../lib/smsParser';
@@ -34,6 +34,16 @@ export const AddEntry = () => {
   const [smsInput, setSmsInput] = useState('');
   const [smsSuggestion, setSmsSuggestion] = useState<TransactionSuggestion | null>(null);
 
+  // Regret Memory System & Pause Before Purchase States
+  const [pastRegrets, setPastRegrets] = useState<string[]>([]);
+  const [showPauseReflection, setShowPauseReflection] = useState(false);
+  const [reflectionAnswers, setReflectionAnswers] = useState({
+    q1: '', // will it matter in 30 days
+    q2: '', // emotional or intentional
+    q3: '', // delays important goal
+    q4: ''  // regret similar
+  });
+
   const [formData, setFormData] = useState<Partial<Entry>>({
     type: 'expense',
     amount: 0,
@@ -44,6 +54,7 @@ export const AddEntry = () => {
     isRegret: false,
     isImpulse: false,
     impulseReason: '',
+    feeling: 'Planned'
   });
 
   const handleSmsPaste = (text: string) => {
@@ -101,6 +112,12 @@ export const AddEntry = () => {
         // Fetch goals
         const goalsSnap = await getDocs(collection(db, 'users', user.uid, 'goals'));
         setActiveGoals(goalsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Goal)).filter(g => g.status === 'active'));
+
+        // Fetch past regrets categories
+        const regretsQ = query(collection(db, 'users', user.uid, 'entries'), where('isRegret', '==', true));
+        const regretsSnap = await getDocs(regretsQ);
+        const uniqueRegrets = Array.from(new Set(regretsSnap.docs.map(doc => (doc.data() as Entry).category)));
+        setPastRegrets(uniqueRegrets);
 
       } catch (error) {
         console.error("Error pre-filling data:", error);
@@ -433,50 +450,209 @@ export const AddEntry = () => {
 
         {/* Behavioral Tracking (Only for Expenses) */}
         {formData.type === 'expense' && (
-          <div className="p-8 bg-stone-50 rounded-[2rem] space-y-8 border border-stone-100">
-            <h4 className="text-xs font-black text-stone-900 uppercase tracking-widest flex items-center">
-              <AlertCircle className="w-4 h-4 mr-2 text-amber-600" />
-              Behavioral Insights
-            </h4>
-            
-            <div className="flex flex-wrap gap-8">
-              <label className="flex items-center cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={formData.isImpulse}
-                  onChange={(e) => setFormData({ ...formData, isImpulse: e.target.checked })}
-                  className="w-6 h-6 rounded-lg border-stone-300 text-stone-900 focus:ring-stone-900"
-                />
-                <span className="ml-4 text-sm font-bold text-stone-600 group-hover:text-stone-900 transition-colors">Impulse Purchase?</span>
-              </label>
-
-              <label className="flex items-center cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={formData.isRegret}
-                  onChange={(e) => setFormData({ ...formData, isRegret: e.target.checked })}
-                  className="w-6 h-6 rounded-lg border-stone-300 text-stone-900 focus:ring-stone-900"
-                />
-                <span className="ml-4 text-sm font-bold text-stone-600 group-hover:text-stone-900 transition-colors">Do you regret this?</span>
-              </label>
-            </div>
-
-            {formData.isImpulse && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="space-y-3"
+          <div className="space-y-8">
+            {formData.category && pastRegrets.some(r => r.toLowerCase() === formData.category?.toLowerCase()) && (
+              <motion.div
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-6 bg-red-50 border border-red-100 rounded-3xl flex items-start space-x-4 text-stone-800 text-xs"
               >
-                <label className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">Why did you buy this?</label>
-                <input
-                  type="text"
-                  value={formData.impulseReason}
-                  onChange={(e) => setFormData({ ...formData, impulseReason: e.target.value })}
-                  placeholder="e.g., Boredom, Sale, Peer pressure"
-                  className="w-full px-6 py-4 bg-white border border-stone-200 rounded-2xl focus:ring-2 focus:ring-stone-900 text-sm font-bold text-stone-900"
-                />
+                <AlertCircle className="w-6 h-6 text-red-650 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-black uppercase tracking-wider text-[10px] text-red-900">🚨 Smart Regret Memory Trigger</p>
+                  <p className="mt-1 leading-relaxed font-semibold text-stone-700">
+                    You previously marked a transaction in <strong>"{formData.category}"</strong> as a spending regret. Take a mindful breath. Are we repeating a stressful spending cycle?
+                  </p>
+                </div>
               </motion.div>
             )}
+
+            <div className="p-8 bg-stone-50 rounded-[2rem] space-y-8 border border-stone-100">
+              <h4 className="text-xs font-black text-stone-900 uppercase tracking-widest flex items-center">
+                <AlertCircle className="w-5 h-5 mr-3 text-amber-600 animate-pulse" />
+                Behavioral Insights & Emotional Spend State
+              </h4>
+              
+              {/* Feelings State checkboxes */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">How were you feeling before this spend?</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { value: 'Planned', label: '🌻 Balanced / Planned' },
+                    { value: 'Stress', label: '⚡ Stress escape' },
+                    { value: 'Boredom', label: '☁️ Boredom relief' },
+                    { value: 'Social', label: '🤝 Peer pressure' },
+                    { value: 'Convenience', label: '🚗 Fast convenience' },
+                    { value: 'Reward', label: '🎉 Emotional reward' }
+                  ].map(feeling => (
+                    <button
+                      key={feeling.value}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, feeling: feeling.value }))}
+                      className={cn(
+                        "py-3.5 px-3 rounded-2xl text-[11px] font-black tracking-wider transition-all border text-left flex items-center justify-between",
+                        formData.feeling === feeling.value
+                          ? "bg-stone-900 text-white border-stone-900 shadow-lg scale-[1.03]"
+                          : "bg-white text-stone-600 border-stone-200/60 hover:bg-stone-50"
+                      )}
+                    >
+                      <span>{feeling.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-8 pt-2">
+                <label className="flex items-center cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={formData.isImpulse}
+                    onChange={(e) => setFormData({ ...formData, isImpulse: e.target.checked })}
+                    className="w-6 h-6 rounded-lg border-stone-300 text-stone-900 focus:ring-stone-900"
+                  />
+                  <span className="ml-4 text-sm font-bold text-stone-600 group-hover:text-stone-900 transition-colors">Impulse Purchase?</span>
+                </label>
+
+                <label className="flex items-center cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={formData.isRegret}
+                    onChange={(e) => setFormData({ ...formData, isRegret: e.target.checked })}
+                    className="w-6 h-6 rounded-lg border-stone-300 text-stone-900 focus:ring-stone-900"
+                  />
+                  <span className="ml-4 text-sm font-bold text-stone-600 group-hover:text-stone-900 transition-colors">Do you regret this already?</span>
+                </label>
+              </div>
+
+              {formData.isImpulse && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="space-y-3"
+                >
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">Why did you buy this?</label>
+                  <input
+                    type="text"
+                    value={formData.impulseReason}
+                    onChange={(e) => setFormData({ ...formData, impulseReason: e.target.value })}
+                    placeholder="e.g., Boredom, Sale, Peer pressure"
+                    className="w-full px-6 py-4 bg-white border border-stone-200 rounded-2xl focus:ring-2 focus:ring-stone-900 text-sm font-bold text-stone-900"
+                  />
+                </motion.div>
+              )}
+
+              {/* Pause Before Purchase interactive reflection questions */}
+              <div className="pt-6 border-t border-stone-200/60">
+                <button
+                  type="button"
+                  onClick={() => setShowPauseReflection(!showPauseReflection)}
+                  className="w-full py-4 px-6 bg-amber-50 hover:bg-amber-100/85 text-amber-950 font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-between transition-colors border border-amber-150"
+                >
+                  <span className="flex items-center gap-2">
+                    <HeartHandshake className="w-4 h-4 text-amber-600" />
+                    <span>{showPauseReflection ? 'Close Pause & Reflect Module' : 'Run 3-Point Pause Before Purchase'}</span>
+                  </span>
+                  <span className="text-[10px] bg-amber-200 text-amber-900 px-3 py-1 rounded-full border border-amber-300/40">{showPauseReflection ? 'Running' : 'Ready'}</span>
+                </button>
+
+                <AnimatePresence>
+                  {showPauseReflection && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mt-6 p-6 bg-amber-50/20 rounded-2xl border border-amber-100/50 space-y-6 overflow-hidden"
+                    >
+                      <p className="text-[11px] text-stone-500 font-bold leading-relaxed italic">
+                        By spending 15 seconds to answer these options, you delay automatic dopamine spending loops:
+                      </p>
+
+                      <div className="space-y-5">
+                        {/* Q1 */}
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-stone-500">1. Will this purchase matter to you in 30 days?</p>
+                          <div className="flex flex-wrap gap-2">
+                            {['No, temporary thrill', 'Barely', 'Yes, long-term asset'].map(opt => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => {
+                                  setReflectionAnswers(prev => ({ ...prev, q1: opt }));
+                                  if (opt.includes('No') || opt.includes('Barely')) {
+                                    setFormData(prev => ({ ...prev, group: 'wants', isImpulse: true }));
+                                  }
+                                }}
+                                className={cn(
+                                  "px-4 py-2 text-[10px] font-bold rounded-xl border transition-all",
+                                  reflectionAnswers.q1 === opt ? "bg-stone-900 text-white border-stone-900" : "bg-white text-stone-600 border-stone-200"
+                                )}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Q2 */}
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-stone-500">2. Is it triggered by an impulse emotion (boredom, social pressure, fear of missing out)?</p>
+                          <div className="flex flex-wrap gap-2">
+                            {['Yes (Emotional)', 'No (Planned/Logical)'].map(opt => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => {
+                                  setReflectionAnswers(prev => ({ ...prev, q2: opt }));
+                                  if (opt.includes('Yes')) {
+                                    setFormData(prev => ({ ...prev, feeling: 'Stress', isImpulse: true }));
+                                  }
+                                }}
+                                className={cn(
+                                  "px-4 py-2 text-[10px] font-bold rounded-xl border transition-all",
+                                  reflectionAnswers.q2 === opt ? "bg-stone-900 text-white border-stone-900" : "bg-white text-stone-600 border-stone-200"
+                                )}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Q3 */}
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-stone-500">3. Does this purchase delay any active goals you have loaded?</p>
+                          <div className="flex flex-wrap gap-2">
+                            {['Yes, delays savings path', 'No impact'].map(opt => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => setReflectionAnswers(prev => ({ ...prev, q3: opt }))}
+                                className={cn(
+                                  "px-4 py-2 text-[10px] font-bold rounded-xl border transition-all",
+                                  reflectionAnswers.q3 === opt ? "bg-stone-900 text-white border-stone-900" : "bg-white text-stone-600 border-stone-200"
+                                )}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {reflectionAnswers.q1 && reflectionAnswers.q2 && (
+                        <div className="p-5 bg-amber-50 rounded-xl border border-amber-200/50 text-xs font-semibold text-stone-800 leading-relaxed">
+                          🛡️ <strong>Shaastra Reflection Guidance:</strong> {
+                            reflectionAnswers.q1.includes('No') || reflectionAnswers.q2.includes('Yes') 
+                              ? "This is classified as a short-term impulse or emotional loop. The app has flagged this as 'Wants' & 'Impulse Spend'. We strongly suggest waiting 24 hours."
+                              : "This spending behaves with strong alignment to family or core necessity. If it is clear, feel free to proceed!"
+                          }
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
           </div>
         )}
 

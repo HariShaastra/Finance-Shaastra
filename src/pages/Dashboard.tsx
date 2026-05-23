@@ -114,12 +114,53 @@ export const Dashboard = () => {
             <span className="text-[10px] font-black uppercase tracking-[0.2em]">Financial Awareness</span>
           </div>
           <h2 className="text-4xl font-black text-stone-900 tracking-tight">Welcome, {profile?.displayName?.split(' ')[0]}</h2>
-          <p className="text-stone-500 mt-2 font-medium leading-relaxed max-w-xl">
-            Finance Shaastra is your personal guide to financial mindfulness—it tracks your spending patterns and behavioral scores using logic-based rules to help you master discipline without algorithms.
+          <p className="text-stone-600 mt-2 text-sm font-bold leading-relaxed max-w-xl">
+            Finance Shaastra is a direct, rule-based mindfulness system that maps financial behavior indices.<br />
+            It replaces algorithmic predictions with self-reporting, reflection audits, and active goal alignment.
           </p>
-          <p className="text-stone-400 mt-1 font-medium text-sm italic underline decoration-amber-500/30">Your financial story for {format(currentMonth, 'MMMM yyyy')}</p>
+          <p className="text-stone-450 mt-2 font-medium text-xs italic underline decoration-amber-500/30">Your financial story for {format(currentMonth, 'MMMM yyyy')}</p>
         </div>
       </motion.header>
+
+      {/* Recovery / App Focus Mode Notifications */}
+      {profile?.recoveryMode && profile.recoveryMode !== 'standard' && (
+        <motion.div
+          variants={item}
+          initial={{ opacity: 0, scale: 0.99 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className={cn(
+            "p-8 rounded-[2rem] border relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6",
+            profile.recoveryMode === 'debt' ? "bg-amber-50 border-amber-200 text-amber-950" :
+            profile.recoveryMode === 'emergency' ? "bg-red-50 border-red-200 text-red-950" :
+            profile.recoveryMode === 'student' ? "bg-blue-50 border-blue-200 text-blue-900" :
+            profile.recoveryMode === 'rebuilding' ? "bg-emerald-50 border-emerald-200 text-emerald-950" :
+            "bg-amber-50 border-amber-250 text-amber-950" // family
+          )}
+        >
+          <div className="space-y-2 max-w-3xl">
+            <h3 className="text-sm font-black uppercase tracking-widest flex items-center">
+              <span className="mr-2">🛡️</span>
+              App Focus Active: {
+                profile.recoveryMode === 'debt' ? 'Debt Recovery Mode' :
+                profile.recoveryMode === 'emergency' ? 'Emergency Preservation Mode' :
+                profile.recoveryMode === 'student' ? 'Student Discipline Mode' :
+                profile.recoveryMode === 'rebuilding' ? 'Rebuilding Phase Mode' :
+                'Family Care & Responsibility Mode'
+              }
+            </h3>
+            <p className="text-xs font-semibold leading-relaxed opacity-95">
+              {profile.recoveryMode === 'debt' && "Take a deep breath. Your path is focused on structural balance and paying off core liabilities. Celebrate every payment you make—all steps are historical victories."}
+              {profile.recoveryMode === 'emergency' && "EMERGENCY PRESERVATION STATUS ACTIVE. Focus strictly on essential 'Needs'. All secondary subscriptions and discretionary impulse wants are flagged for removal. Conserve liquid capital."}
+              {profile.recoveryMode === 'student' && "We emphasize logging consistency, learning routines and building good habits rather than raw high savings rates. Keep your streak alive today."}
+              {profile.recoveryMode === 'rebuilding' && "Welcome back after disruption. Your score celebrates micro-wins and the resumption of routine tracking. Focus is on incremental streak recovery."}
+              {profile.recoveryMode === 'family' && `Indian Joint-Family Budgets Active. Shared family allocation goal: $${profile.familyBudgetGoal || 0}. Dependents & Parents supported: ${profile.familyMembersCount || 1}. Priority is placed on medication, parenting bills, and shared security.`}
+            </p>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-stone-900 text-white rounded-full shrink-0 border border-stone-800">
+            {profile.recoveryMode}
+          </span>
+        </motion.div>
+      )}
 
       {/* Stats Grid */}
       <motion.div variants={item} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

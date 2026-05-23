@@ -14,6 +14,7 @@ import { Goals } from './pages/Goals';
 import { Subscriptions } from './pages/Subscriptions';
 import { Guide } from './pages/Guide';
 import { Settings } from './pages/Settings';
+import { Decisions } from './pages/Decisions';
 import { Logo } from './components/Logo';
 
 const Login = () => {
@@ -85,6 +86,7 @@ export default function App() {
                     <Route path="/subscriptions" element={<Subscriptions />} />
                     <Route path="/guide" element={<Guide />} />
                     <Route path="/settings" element={<Settings />} />
+                    <Route path="/decisions" element={<Decisions />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>
